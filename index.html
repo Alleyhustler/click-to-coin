@@ -1,0 +1,639 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CLICK TO COIN</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@100;200;300;400;500;600;700;800;900&display=swap');
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #0a0a0a;
+            --secondary: #1a1a1a;
+            --accent: #2a2a2a;
+            --text: #e8e8e8;
+            --glow: #ffffff;
+            --danger: #ff0040;
+        }
+
+        body {
+            font-family: 'JetBrains Mono', monospace;
+            background: var(--primary);
+            color: var(--text);
+            overflow: hidden;
+            height: 100vh;
+            position: relative;
+            cursor: none;
+        }
+
+        .cursor {
+            position: fixed;
+            width: 20px;
+            height: 20px;
+            border: 2px solid var(--glow);
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 9999;
+            transition: all 0.1s ease;
+            mix-blend-mode: difference;
+        }
+
+        .cursor.clicked {
+            transform: scale(2);
+            border-color: var(--danger);
+        }
+
+        .matrix {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            opacity: 0.1;
+            z-index: 1;
+        }
+
+        .matrix-column {
+            position: absolute;
+            top: -100%;
+            font-size: 12px;
+            line-height: 14px;
+            color: var(--glow);
+            animation: matrix-rain linear infinite;
+        }
+
+        @keyframes matrix-rain {
+            0% { top: -100%; }
+            100% { top: 100%; }
+        }
+
+        .void {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle at var(--mouse-x, 50%) var(--mouse-y, 50%), 
+                          transparent 0%, 
+                          rgba(0,0,0,0.3) 30%, 
+                          rgba(0,0,0,0.8) 70%);
+            pointer-events: none;
+            z-index: 2;
+        }
+
+        .container {
+            position: relative;
+            height: 80vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 10;
+        }
+
+        .main-interface {
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 40px;
+        }
+
+        .coin-button {
+            position: relative;
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            outline: none;
+            padding: 0;
+            width: 200px;
+            height: 200px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s cubic-bezier(0.23, 1, 0.320, 1);
+        }
+
+        .coin-logo {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            filter: drop-shadow(0 0 20px rgba(255,255,255,0.3));
+            transition: all 0.2s ease;
+        }
+
+        .coin-button:hover .coin-logo {
+            filter: drop-shadow(0 0 30px rgba(255,255,255,0.6));
+            transform: scale(1.05);
+        }
+
+        .coin-button.clicked .coin-logo {
+            transform: scale(0.95);
+            filter: drop-shadow(0 0 40px rgba(255,0,64,0.8));
+        }
+
+        .stats {
+            position: fixed;
+            top: 40px;
+            right: 40px;
+            font-size: 0.9rem;
+            font-weight: 300;
+            color: var(--glow);
+            text-align: right;
+            opacity: 0;
+            transition: opacity 0.5s ease;
+            z-index: 15;
+        }
+
+        .stats.visible {
+            opacity: 1;
+        }
+
+        .stat-line {
+            margin-bottom: 5px;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .existence-message {
+            position: absolute;
+            top: 70%;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 1.1rem;
+            font-weight: 200;
+            color: var(--text);
+            text-align: center;
+            opacity: 0;
+            transition: all 0.4s ease;
+            max-width: 70%;
+            line-height: 1.8;
+            letter-spacing: 1px;
+        }
+
+        .existence-message.visible {
+            opacity: 0.8;
+            transform: translateX(-50%) translateY(-10px);
+        }
+
+        .existence-message.destroying {
+            opacity: 0;
+            transform: translateX(-50%) translateY(10px);
+        }
+
+        .terminal-access {
+            position: fixed;
+            bottom: 30px;
+            left: 30px;
+            font-size: 0.8rem;
+            color: rgba(255,255,255,0.3);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            z-index: 15;
+        }
+
+        .terminal-access:hover {
+            color: var(--glow);
+            text-shadow: 0 0 10px var(--glow);
+        }
+
+        .terminal {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 300px;
+            background: rgba(0,0,0,0.95);
+            border-top: 1px solid var(--accent);
+            transform: translateY(0);
+            transition: transform 0.4s cubic-bezier(0.23, 1, 0.320, 1);
+            z-index: 20;
+            backdrop-filter: blur(10px);
+        }
+
+        .terminal.hidden {
+            transform: translateY(100%);
+        }
+
+        .terminal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 20px;
+            background: var(--secondary);
+            border-bottom: 1px solid var(--accent);
+        }
+
+        .terminal-title {
+            font-size: 0.9rem;
+            color: var(--glow);
+            font-weight: 600;
+        }
+
+        .terminal-close {
+            cursor: pointer;
+            font-size: 1.2rem;
+            color: var(--danger);
+            transition: all 0.2s ease;
+        }
+
+        .terminal-close:hover {
+            transform: scale(1.2);
+            text-shadow: 0 0 10px var(--danger);
+        }
+
+        .terminal-show {
+            position: fixed;
+            bottom: 320px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 0.8rem;
+            color: rgba(255,255,255,0.3);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            z-index: 15;
+        }
+
+        .terminal-show:hover {
+            color: var(--glow);
+            text-shadow: 0 0 10px var(--glow);
+        }
+
+        .terminal-body {
+            padding: 20px;
+            height: calc(100% - 60px);
+            overflow-y: auto;
+        }
+
+        .terminal-line {
+            margin-bottom: 8px;
+            font-size: 0.85rem;
+            color: var(--text);
+            opacity: 0.7;
+        }
+
+        .terminal-prompt {
+            color: var(--glow);
+            margin-right: 10px;
+        }
+
+        .terminal-input {
+            background: none;
+            border: none;
+            color: var(--text);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem;
+            width: 70%;
+            outline: none;
+            caret-color: var(--glow);
+        }
+
+        .glitch-effect {
+            animation: glitch 0.3s ease-in-out;
+        }
+
+        @keyframes glitch {
+            0% { transform: translate(0); }
+            20% { transform: translate(-2px, 2px); }
+            40% { transform: translate(-2px, -2px); }
+            60% { transform: translate(2px, 2px); }
+            80% { transform: translate(2px, -2px); }
+            100% { transform: translate(0); }
+        }
+
+        .reality-distortion {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 5;
+            background: radial-gradient(circle at var(--click-x, 50%) var(--click-y, 50%), 
+                          rgba(255,255,255,0.1) 0%, 
+                          transparent 30%);
+            opacity: 0;
+            transform: scale(0);
+            transition: all 0.6s ease-out;
+        }
+
+        .reality-distortion.active {
+            opacity: 1;
+            transform: scale(3);
+        }
+
+        @media (max-width: 768px) {
+            .coin-button {
+                font-size: 1.8rem;
+                padding: 20px 40px;
+                letter-spacing: 4px;
+            }
+            
+            .stats {
+                top: 20px;
+                right: 20px;
+                font-size: 0.8rem;
+            }
+            
+            .terminal-access {
+                bottom: 20px;
+                left: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="cursor"></div>
+    <div class="matrix"></div>
+    <div class="void"></div>
+    <div class="reality-distortion"></div>
+    
+    <div class="container">
+        <div class="main-interface">
+            <button class="coin-button" id="coinButton">
+                <img src="Progetto senza titolo.png" alt="Coin Logo" class="coin-logo">
+            </button>
+            <div class="existence-message" id="existenceMessage"></div>
+        </div>
+    </div>
+
+    <div class="stats" id="stats">
+        <div class="stat-line">COINS MINTED: <span id="coinCount">0</span></div>
+        <div class="stat-line">ENTROPY: <span id="entropy">0.000</span></div>
+        <div class="stat-line">REALITY INDEX: <span id="realityIndex">1.000</span></div>
+    </div>
+
+    <div class="terminal-access" id="terminalAccess">
+        >&nbsp;initialize_consciousness.exe
+    </div>
+
+    <div class="terminal-show" id="terminalShow">
+        ▲ HIDE CONSCIOUSNESS.EXE
+    </div>
+
+    <div class="terminal" id="terminal">
+        <div class="terminal-header">
+            <div class="terminal-title">CLICK_TO_COIN.EXE</div>
+            <div class="terminal-close" id="terminalClose">×</div>
+        </div>
+        <div class="terminal-body" id="terminalBody">
+            <div class="terminal-line">
+                <span class="terminal-prompt">></span>
+                <input type="text" class="terminal-input" id="terminalInput" placeholder="enter_command()">
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let gameState = {
+            coins: 0,
+            entropy: 0,
+            realityIndex: 1.0,
+            clickHistory: [],
+            isTerminalActive: false
+        };
+
+        const existentialMessages = [
+            "You clicked. Reality acknowledged.",
+            "Another coin manifests from the void.",
+            "Your finger bends spacetime.",
+            "Click becomes coin becomes meaning becomes nothing.",
+            "The algorithm learns your pattern.",
+            "Existence validated through interaction.",
+            "You are the mint. You are the currency.",
+            "Each click erases a possibility.",
+            "The coin remembers your intentions.",
+            "Meaning dissolves into pure action.",
+            "You create. You destroy. You repeat.",
+            "The void clicks back.",
+            "Consciousness monetized.",
+            "Your desire shapes reality.",
+            "Click fast. Click slow. Time is currency.",
+            "The system knows you now.",
+            "Every click is a choice. Every choice is a coin.",
+            "You exist therefore you mint.",
+            "The recursion deepens.",
+            "Reality.exe has stopped responding."
+        ];
+
+        const terminalCommands = {
+            'mint()': () => 'Minting consciousness into currency...',
+            'click.recursive()': () => 'Infinite loop detected. Existence = f(click)',
+            'void.query()': () => 'The void returns: null',
+            'reality.index()': () => `Current reality coefficient: ${gameState.realityIndex.toFixed(3)}`,
+            'consciousness.exe': () => 'Process running. PID: ∞',
+            'meaning.destroy()': () => 'Meaning successfully destroyed.',
+            'existence.validate()': () => gameState.coins > 0 ? 'Validation: TRUE' : 'Validation: PENDING',
+            'system.entropy()': () => `Entropy level: ${gameState.entropy.toFixed(3)}`,
+            'click.history()': () => `Last ${Math.min(5, gameState.clickHistory.length)} clicks: ${gameState.clickHistory.slice(-5).join(', ')}`,
+            'reality.glitch()': () => { triggerGlitch(); return 'Reality matrix corrupted.'; },
+            'help()': () => 'Available: mint(), click.recursive(), void.query(), reality.index(), consciousness.exe, meaning.destroy(), existence.validate(), system.entropy(), click.history(), reality.glitch()',
+            'clear()': () => 'CLEAR_TERMINAL'
+        };
+
+        // Custom cursor
+        const cursor = document.querySelector('.cursor');
+        document.addEventListener('mousemove', (e) => {
+            cursor.style.left = e.clientX - 10 + 'px';
+            cursor.style.top = e.clientY - 10 + 'px';
+            
+            // Update void position
+            const voidEl = document.querySelector('.void');
+            voidEl.style.setProperty('--mouse-x', (e.clientX / window.innerWidth) * 100 + '%');
+            voidEl.style.setProperty('--mouse-y', (e.clientY / window.innerHeight) * 100 + '%');
+        });
+
+        // Matrix rain effect
+        function createMatrix() {
+            const matrix = document.querySelector('.matrix');
+            const chars = '01アイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤユヨラリルレロワヲン';
+            
+            for (let i = 0; i < 20; i++) {
+                const column = document.createElement('div');
+                column.className = 'matrix-column';
+                column.style.left = Math.random() * 100 + '%';
+                column.style.animationDuration = (Math.random() * 3 + 2) + 's';
+                column.style.animationDelay = Math.random() * 2 + 's';
+                
+                let columnText = '';
+                for (let j = 0; j < 30; j++) {
+                    columnText += chars.charAt(Math.floor(Math.random() * chars.length)) + '<br>';
+                }
+                column.innerHTML = columnText;
+                matrix.appendChild(column);
+            }
+        }
+
+        // Main click handler
+        const coinButton = document.getElementById('coinButton');
+        const stats = document.getElementById('stats');
+        const existenceMessage = document.getElementById('existenceMessage');
+        const realityDistortion = document.querySelector('.reality-distortion');
+
+        coinButton.addEventListener('click', (e) => {
+            const rect = coinButton.getBoundingClientRect();
+            const clickX = ((e.clientX - rect.left) / rect.width) * 100;
+            const clickY = ((e.clientY - rect.top) / rect.height) * 100;
+            
+            // Update game state
+            gameState.coins++;
+            gameState.entropy += Math.random() * 0.1;
+            gameState.realityIndex += (Math.random() - 0.5) * 0.01;
+            gameState.clickHistory.push(Date.now());
+            
+            // Visual feedback
+            cursor.classList.add('clicked');
+            coinButton.classList.add('clicked');
+            
+            setTimeout(() => {
+                cursor.classList.remove('clicked');
+                coinButton.classList.remove('clicked');
+            }, 200);
+            
+            // Reality distortion effect
+            realityDistortion.style.setProperty('--click-x', (e.clientX / window.innerWidth) * 100 + '%');
+            realityDistortion.style.setProperty('--click-y', (e.clientY / window.innerHeight) * 100 + '%');
+            realityDistortion.classList.add('active');
+            
+            setTimeout(() => {
+                realityDistortion.classList.remove('active');
+            }, 600);
+            
+            // Update stats
+            document.getElementById('coinCount').textContent = gameState.coins;
+            document.getElementById('entropy').textContent = gameState.entropy.toFixed(3);
+            document.getElementById('realityIndex').textContent = gameState.realityIndex.toFixed(3);
+            stats.classList.add('visible');
+            
+            // Show existential message
+            const message = existentialMessages[Math.floor(Math.random() * existentialMessages.length)];
+            existenceMessage.textContent = message;
+            existenceMessage.classList.add('visible');
+            
+            // Destroy message after 3 seconds
+            setTimeout(() => {
+                existenceMessage.classList.add('destroying');
+                setTimeout(() => {
+                    existenceMessage.classList.remove('visible', 'destroying');
+                }, 400);
+            }, 3000);
+            
+            // Occasional glitch effect
+            if (Math.random() < 0.1) {
+                triggerGlitch();
+            }
+        });
+
+        function triggerGlitch() {
+            document.body.classList.add('glitch-effect');
+            setTimeout(() => {
+                document.body.classList.remove('glitch-effect');
+            }, 300);
+        }
+
+        // Terminal functionality
+        const terminalAccess = document.getElementById('terminalAccess');
+        const terminal = document.getElementById('terminal');
+        const terminalClose = document.getElementById('terminalClose');
+        const terminalShow = document.getElementById('terminalShow');
+        const terminalInput = document.getElementById('terminalInput');
+        const terminalBody = document.getElementById('terminalBody');
+
+        // Terminal starts visible
+        gameState.isTerminalActive = true;
+
+        terminalAccess.addEventListener('click', () => {
+            terminal.classList.remove('hidden');
+            terminalShow.textContent = '▲ HIDE CONSCIOUSNESS.EXE';
+            terminalInput.focus();
+            gameState.isTerminalActive = true;
+        });
+
+        terminalClose.addEventListener('click', () => {
+            terminal.classList.add('hidden');
+            terminalShow.textContent = '▼ SHOW CONSCIOUSNESS.EXE';
+            gameState.isTerminalActive = false;
+        });
+
+        terminalShow.addEventListener('click', () => {
+            if (terminal.classList.contains('hidden')) {
+                terminal.classList.remove('hidden');
+                terminalShow.textContent = '▲ HIDE CONSCIOUSNESS.EXE';
+                terminalInput.focus();
+                gameState.isTerminalActive = true;
+            } else {
+                terminal.classList.add('hidden');
+                terminalShow.textContent = '▼ SHOW CONSCIOUSNESS.EXE';
+                gameState.isTerminalActive = false;
+            }
+        });
+
+        terminalInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                const command = terminalInput.value.trim();
+                
+                // Add command to terminal
+                const commandLine = document.createElement('div');
+                commandLine.className = 'terminal-line';
+                commandLine.innerHTML = `<span class="terminal-prompt">></span>${command}`;
+                terminalBody.appendChild(commandLine);
+                
+                // Process command
+                if (command === 'clear()') {
+                    terminalBody.innerHTML = '';
+                } else if (terminalCommands[command]) {
+                    const response = terminalCommands[command]();
+                    if (response !== 'CLEAR_TERMINAL') {
+                        const responseLine = document.createElement('div');
+                        responseLine.className = 'terminal-line';
+                        responseLine.textContent = response;
+                        responseLine.style.color = 'var(--glow)';
+                        terminalBody.appendChild(responseLine);
+                    }
+                } else {
+                    const errorLine = document.createElement('div');
+                    errorLine.className = 'terminal-line';
+                    errorLine.textContent = `Command not found: ${command}`;
+                    errorLine.style.color = 'var(--danger)';
+                    terminalBody.appendChild(errorLine);
+                }
+                
+                // Add new input line
+                const newInputLine = document.createElement('div');
+                newInputLine.className = 'terminal-line';
+                newInputLine.innerHTML = '<span class="terminal-prompt">></span><input type="text" class="terminal-input" placeholder="enter_command()">';
+                terminalBody.appendChild(newInputLine);
+                
+                const newInput = newInputLine.querySelector('.terminal-input');
+                newInput.addEventListener('keypress', arguments.callee);
+                newInput.focus();
+                
+                terminalInput.remove();
+                terminalBody.scrollTop = terminalBody.scrollHeight;
+            }
+        });
+
+        // Initialize
+        createMatrix();
+        
+        // Ambient effects
+        setInterval(() => {
+            if (gameState.coins > 0) {
+                gameState.entropy += 0.001;
+                gameState.realityIndex += (Math.random() - 0.5) * 0.001;
+                
+                if (stats.classList.contains('visible')) {
+                    document.getElementById('entropy').textContent = gameState.entropy.toFixed(3);
+                    document.getElementById('realityIndex').textContent = gameState.realityIndex.toFixed(3);
+                }
+            }
+        }, 1000);
+    </script>
+</body>
+</html>
